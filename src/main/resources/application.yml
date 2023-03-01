@@ -1,0 +1,46 @@
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/click_farming?useUnicode=true&characterEncoding=utf8&&useSSL=true&serverTimezone=Asia/Shanghai
+    username: root
+    password: root@123456
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        enable_lazy_load_no_trans: false
+        format_sql: true
+    hibernate:
+      ddl-auto: update
+  cache:
+    cache-names: expense
+    caffeine:
+      spec: maximumSize=3000,expireAfterWrite=60s
+
+  #  redis配置
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      timeout: 1000
+      password:
+      database: 0
+
+
+# JWT
+jwt:
+  issuer: kotlinAdmin
+  expiry: 24 # hours
+  private.key: classpath:app.key
+  public.key: classpath:app.pub
+
+server:
+  servlet:
+    context-path: /api
+
+# 阿里云OSS
+aliyun:
+  oss:
+    endpoint: https://oss-cn-hangzhou.aliyuncs.com
+    accessKey: LTAI5tBQWexc2at65e48QYyQ
+    accessSecret: xzrXNRfMwyULA6HDnqwONszslKAUKX
+    bucket: click-farming-oss
