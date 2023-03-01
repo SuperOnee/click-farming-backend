@@ -25,9 +25,9 @@ class FundChangeRecordController(val fundChangeRecordService: FundChangeRecordSe
  */
 data class FundChangeRecordQueryRequest(
     // 用户ID
-    val userId: Long,
+    var userId: Long?,
     // 用户类型
-    val userType: UserTypeEnum,
+    var userType: UserTypeEnum?,
     // 订单编号
     val orderNo: String? = null,
     // 任务编号

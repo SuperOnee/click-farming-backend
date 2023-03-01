@@ -1,6 +1,8 @@
 package com.fakedonald.clickfarming.contorller.sales
 
+import com.fakedonald.clickfarming.contorller.system.FundChangeRecordQueryRequest
 import com.fakedonald.clickfarming.domain.common.UserBankCard
+import com.fakedonald.clickfarming.domain.common.UserWithdrawRequest
 import com.fakedonald.clickfarming.domain.merchant.Merchant
 import com.fakedonald.clickfarming.domain.merchant.MerchantShop
 import com.fakedonald.clickfarming.domain.sales.SalesMan
@@ -9,10 +11,13 @@ import com.fakedonald.clickfarming.enums.sales.SalesManPasswordTypeEnum
 import com.fakedonald.clickfarming.enums.sales.UserTypeEnum
 import com.fakedonald.clickfarming.extension.*
 import com.fakedonald.clickfarming.repository.UserBankCardRepository
+import com.fakedonald.clickfarming.repository.UserWithdrawRequestRepository
 import com.fakedonald.clickfarming.repository.merchant.MerchantRepository
 import com.fakedonald.clickfarming.repository.merchant.MerchantShopRepository
 import com.fakedonald.clickfarming.repository.sales.SalesManRepository
 import com.fakedonald.clickfarming.security.TokenService
+import com.fakedonald.clickfarming.service.system.FundChangeRecordService
+import jakarta.transaction.Transactional
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.web.bind.annotation.*
 
@@ -28,6 +33,8 @@ class SalesController(
     private val merchantRepository: MerchantRepository,
     private val userBankCardRepository: UserBankCardRepository,
     private val merchantShopRepository: MerchantShopRepository,
+    private val fundChangeRecordService: FundChangeRecordService,
+    private val userWithdrawRequestRepository: UserWithdrawRequestRepository,
     val passwordEncoder: BCryptPasswordEncoder,
 ) {
 
@@ -41,7 +48,7 @@ class SalesController(
     /**
      * 重置密码
      */
-    @PostMapping("/updatePassword")
+    @PutMapping("/updatePassword")
     suspend fun initialWithdrawPassword(@RequestBody request: SalesManResetPasswordRequest): Response {
         tokenService.resetSalesPassword(request)
         return Response.success()
@@ -190,9 +197,76 @@ class SalesController(
      */
     @PostMapping("/addBankCard")
     fun addBankCard(@RequestBody request: UserBankCard): Response {
+        val userId = tokenService.getClaim("userId") as Long
         request.state = StateTypeEnum.PASS
         request.userType = UserTypeEnum.SALES_MAN
+        request.userId = userId
         return userBankCardRepository.save(request).toJson()
+    }
+
+    /**
+     * 更新业务员银行卡
+     */
+    @PutMapping("/updateBankCard")
+    fun updateBankCard(@RequestBody request: UserBankCard): Response {
+        request.id?.let {
+            val updateEntity = userBankCardRepository.findById(it).notFound()
+            updateEntity.issueBank = request.issueBank
+            updateEntity.account = request.account
+            updateEntity.bankType = request.bankType
+            updateEntity.realName = request.realName
+            return userBankCardRepository.save(updateEntity).toJson()
+        } ?: return Response.error()
+    }
+
+    /**
+     * 删除业务员银行卡
+     */
+    @DeleteMapping("/userBankCard/{id}")
+    fun deleteUserBankCard(@PathVariable id: Long): Response {
+        val userId = tokenService.getClaim("userId") as Long
+        val deleteEntity = userBankCardRepository.findById(id).notFound()
+        if (deleteEntity.userId == userId) {
+            userBankCardRepository.deleteById(id)
+        } else throw CustomException("参数错误")
+        return Response.success()
+    }
+
+    /**
+     * 业务员资金明细接口
+     *
+     * @param request 请求
+     */
+    @GetMapping("/fundChangRecord")
+    fun queryData(request: FundChangeRecordQueryRequest): Response {
+        val userId = tokenService.getClaim("userId") as Long
+        request.userId = userId
+        request.userType = UserTypeEnum.SALES_MAN
+        return fundChangeRecordService.queryPage(request).toJson()
+    }
+
+    /**
+     * 申请提现
+     */
+    @PostMapping("/applyWithdraw")
+    @Transactional
+    fun applyWithdraw(@RequestBody request: UserWithdrawRequest): Response {
+        val user = tokenService.getSalesManUser()
+        return if (passwordEncoder.matches(request.withdrawPassword, user.withdrawPassword)) {
+            if (user.balance < request.amount) return Response.error(null, "余额不足")
+            else {
+                val userBankCard = userBankCardRepository.findById(request.bankCardId).notFound()
+                if (userBankCard.userId != user.id) return Response.error(null, "参数错误")
+                request.userId = user.id!!
+                request.userType = UserTypeEnum.SALES_MAN
+                userWithdrawRequestRepository.save(request)
+                // 更新用户余额
+                user.balance = user.balance - request.amount
+                user.frozeBalance = user.frozeBalance!! + request.amount
+                salesManRepository.save(user)
+                Response.success()
+            }
+        } else Response.error(null, "密码错误")
     }
 
     // 私有函数

@@ -22,7 +22,7 @@ interface FundChangeRecordService {
         balance: BigDecimal, adminUsername: String
     )
 
-    suspend fun queryPage(request: FundChangeRecordQueryRequest): Page<FundChangeRecord>
+    fun queryPage(request: FundChangeRecordQueryRequest): Page<FundChangeRecord>
 }
 
 @Service
@@ -54,7 +54,7 @@ class FundChangeRecordServiceImpl(val fundChangeRecordRepository: FundChangeReco
     /**
      * 分页查询
      */
-    override suspend fun queryPage(request: FundChangeRecordQueryRequest): Page<FundChangeRecord> {
+    override fun queryPage(request: FundChangeRecordQueryRequest): Page<FundChangeRecord> {
         val pageRequest = generatePageRequest()
         return fundChangeRecordRepository
             .findAll(
