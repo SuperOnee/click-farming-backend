@@ -8,6 +8,7 @@ import com.fakedonald.clickfarming.domain.sales.SalesMan
 import com.fakedonald.clickfarming.extension.*
 import com.fakedonald.clickfarming.repository.merchant.MerchantRepository
 import com.fakedonald.clickfarming.repository.sales.SalesManRepository
+import com.fakedonald.clickfarming.security.CustomerDetailsServiceImpl
 import com.fakedonald.clickfarming.security.MerchantDetailsServiceImpl
 import com.fakedonald.clickfarming.security.SalesManDetailsServiceImpl
 import com.fakedonald.clickfarming.security.SystemUserDetailsServiceImpl
@@ -26,6 +27,7 @@ class AuthController(
     val adminDetailsService: SystemUserDetailsServiceImpl,
     val salesManDetailsService: SalesManDetailsServiceImpl,
     val merchantDetailsService: MerchantDetailsServiceImpl,
+    val customerDetailsService: CustomerDetailsServiceImpl,
     val salesManRepository: SalesManRepository,
     val merchantRepository: MerchantRepository,
     val passwordEncoder: BCryptPasswordEncoder,
@@ -90,6 +92,16 @@ class AuthController(
     fun merchantLogin(@RequestBody request: AuthRequest): Response {
         cache.getIfPresent(request.code)?.let {
             return merchantDetailsService.authenticate(request).toJson()
+        } ?: throw CustomException("验证码错误或已过期")
+    }
+
+    /**
+     * 试客登录
+     */
+    @PostMapping("/customerLogin")
+    fun customerLogin(@RequestBody request: AuthRequest) : Response {
+        cache.getIfPresent(request.code)?.let {
+            return customerDetailsService.authenticate(request).toJson()
         } ?: throw CustomException("验证码错误或已过期")
     }
 }

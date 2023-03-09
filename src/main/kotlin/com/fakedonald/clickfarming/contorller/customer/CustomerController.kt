@@ -8,6 +8,7 @@ import com.fakedonald.clickfarming.extension.Response
 import com.fakedonald.clickfarming.extension.toJson
 import com.fakedonald.clickfarming.repository.customer.CustomerRepository
 import com.fakedonald.clickfarming.security.TokenService
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -23,6 +24,9 @@ class CustomerController(
         private val tokenService: TokenService,
         private val customerRepository: CustomerRepository,
 ) {
+
+    @GetMapping("/currentUser")
+    fun currentUser() = tokenService.getCustomerUser().toJson()
 
     /**
      * 验证身份信息
@@ -58,6 +62,7 @@ class CustomerController(
      */
     @PutMapping("/updateWithdrawPassword")
     fun updateWithdrawPassword(@RequestBody request: UpdateWithdrawPasswordRequest): Response {
+        if (request.newPassword != request.confirmPassword) throw CustomException("两次密码输入不一致")
         val currentUser = tokenService.getCustomerUser()
         val match = tokenService.match(request.withdrawPassword, currentUser.withdrawPassword)
         if (!match) throw CustomException("原密码错误")
