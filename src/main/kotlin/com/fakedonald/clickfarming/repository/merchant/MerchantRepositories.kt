@@ -2,6 +2,7 @@ package com.fakedonald.clickfarming.repository.merchant
 
 import com.fakedonald.clickfarming.domain.merchant.Merchant
 import com.fakedonald.clickfarming.domain.merchant.MerchantShop
+import com.fakedonald.clickfarming.domain.merchant.MerchantTask
 import com.fakedonald.clickfarming.domain.merchant.MerchantTopUpRecord
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.repository.CrudRepository
@@ -15,3 +16,5 @@ interface MerchantRepository : CrudRepository<Merchant, Long>, JpaSpecificationE
 interface MerchantShopRepository : CrudRepository<MerchantShop, Long>, JpaSpecificationExecutor<MerchantShop>
 
 interface MerchantTopUpRecordRepository : CrudRepository<MerchantTopUpRecord, Long>, JpaSpecificationExecutor<MerchantTopUpRecord>
+
+interface MerchantTaskRepository : CrudRepository<MerchantTask, Long>, JpaSpecificationExecutor<MerchantTask>

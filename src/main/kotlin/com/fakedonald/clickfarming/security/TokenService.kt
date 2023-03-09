@@ -2,12 +2,14 @@ package com.fakedonald.clickfarming.security
 
 import com.fakedonald.clickfarming.contorller.MerchantPasswordRequest
 import com.fakedonald.clickfarming.contorller.sales.SalesManResetPasswordRequest
+import com.fakedonald.clickfarming.domain.customer.Customer
 import com.fakedonald.clickfarming.domain.merchant.Merchant
 import com.fakedonald.clickfarming.domain.sales.SalesMan
 import com.fakedonald.clickfarming.domain.system.SystemUser
 import com.fakedonald.clickfarming.enums.sales.CommonPasswordTypeEnum
 import com.fakedonald.clickfarming.extension.CustomException
 import com.fakedonald.clickfarming.extension.notFound
+import com.fakedonald.clickfarming.repository.customer.CustomerRepository
 import com.fakedonald.clickfarming.repository.merchant.MerchantRepository
 import com.fakedonald.clickfarming.repository.sales.SalesManRepository
 import com.fakedonald.clickfarming.repository.system.SystemUserRepository
@@ -25,10 +27,11 @@ import org.springframework.stereotype.Component
  */
 @Component
 class TokenService(
-    private val systemUserRepository: SystemUserRepository,
-    private val salesManRepository: SalesManRepository,
-    private val merchantRepository: MerchantRepository,
-    val passwordEncoder: BCryptPasswordEncoder,
+        private val systemUserRepository: SystemUserRepository,
+        private val salesManRepository: SalesManRepository,
+        private val merchantRepository: MerchantRepository,
+        private val customerRepository: CustomerRepository,
+        val passwordEncoder: BCryptPasswordEncoder,
 ) {
 
     /**
@@ -57,26 +60,35 @@ class TokenService(
     fun getMerchantUser(): Merchant = merchantRepository.findById(getClaim("userId") as Long).notFound()
 
     /**
+     * 获取试客用户
+     */
+    fun getCustomerUser(): Customer = customerRepository.findById(getClaim("userId") as Long).notFound()
+
+    fun match(rawPassword: String, encodedPassword: String): Boolean = passwordEncoder.matches(rawPassword, encodedPassword)
+
+    fun encodePassword(password: String): String = passwordEncoder.encode(password)
+
+    /**
      * 校验管理密码是否合法
      */
     fun validateAdminPassword(
-        adminUser: SystemUser,
-        sourcePassword: String,
-        adminPasswordType: AdminPasswordTypeEnum
+            adminUser: SystemUser,
+            sourcePassword: String,
+            adminPasswordType: AdminPasswordTypeEnum
     ): Boolean {
         return when (adminPasswordType) {
             AdminPasswordTypeEnum.LOGIN_PASSWORD -> passwordEncoder.matches(
-                sourcePassword,
-                adminUser.password,
+                    sourcePassword,
+                    adminUser.password,
             )
 
             AdminPasswordTypeEnum.FUND_OPERATION -> passwordEncoder.matches(
-                sourcePassword, adminUser.fundOperatePassword
+                    sourcePassword, adminUser.fundOperatePassword
             )
 
             AdminPasswordTypeEnum.TRANSFER -> passwordEncoder.matches(
-                sourcePassword,
-                adminUser.transferPassword,
+                    sourcePassword,
+                    adminUser.transferPassword,
             )
         }
     }
@@ -94,7 +106,7 @@ class TokenService(
                 AdminPasswordTypeEnum.LOGIN_PASSWORD -> adminUser.password = passwordEncoder.encode(request.newPassword)
 
                 AdminPasswordTypeEnum.FUND_OPERATION -> adminUser.fundOperatePassword =
-                    passwordEncoder.encode(request.newPassword)
+                        passwordEncoder.encode(request.newPassword)
 
                 AdminPasswordTypeEnum.TRANSFER -> adminUser.transferPassword = passwordEncoder.encode(request.newPassword)
             }
@@ -182,10 +194,10 @@ class TokenService(
 
 // 重置管理员密码请求
 data class ResetAdminPasswordRequest(
-    val id: Long,
-    val passwordType: AdminPasswordTypeEnum,
-    val password: String,
-    val newPassword: String,
+        val id: Long,
+        val passwordType: AdminPasswordTypeEnum,
+        val password: String,
+        val newPassword: String,
 )
 
 // 操作密码枚举

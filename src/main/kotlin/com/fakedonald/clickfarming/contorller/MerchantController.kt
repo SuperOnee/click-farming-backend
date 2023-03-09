@@ -4,15 +4,18 @@ import com.fakedonald.clickfarming.contorller.system.FundChangeRecordQueryReques
 import com.fakedonald.clickfarming.domain.common.UserBankCard
 import com.fakedonald.clickfarming.domain.common.UserWithdrawRequest
 import com.fakedonald.clickfarming.domain.merchant.MerchantShop
+import com.fakedonald.clickfarming.domain.merchant.MerchantTask
 import com.fakedonald.clickfarming.domain.merchant.MerchantTopUpRecord
 import com.fakedonald.clickfarming.enums.StateTypeEnum
 import com.fakedonald.clickfarming.enums.sales.CommonPasswordTypeEnum
 import com.fakedonald.clickfarming.enums.sales.UserTypeEnum
+import com.fakedonald.clickfarming.enums.system.TaskTypeEnum
 import com.fakedonald.clickfarming.extension.*
 import com.fakedonald.clickfarming.repository.UserBankCardRepository
 import com.fakedonald.clickfarming.repository.UserWithdrawRequestRepository
 import com.fakedonald.clickfarming.repository.merchant.MerchantRepository
 import com.fakedonald.clickfarming.repository.merchant.MerchantShopRepository
+import com.fakedonald.clickfarming.repository.merchant.MerchantTaskRepository
 import com.fakedonald.clickfarming.repository.merchant.MerchantTopUpRecordRepository
 import com.fakedonald.clickfarming.security.TokenService
 import com.fakedonald.clickfarming.service.system.FundChangeRecordService
@@ -30,14 +33,15 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping("/merchantApi")
 class MerchantController(
-    private val merchantShopRepository: MerchantShopRepository,
-    private val userBankCardRepository: UserBankCardRepository,
-    private val fundChangeRecordService: FundChangeRecordService,
-    private val systemBankCardService: SystemBankCardService,
-    private val merchantTopUpRecordRepository: MerchantTopUpRecordRepository,
-    private val userWithdrawRequestRepository: UserWithdrawRequestRepository,
-    private val passwordEncoder: BCryptPasswordEncoder,
-    val tokenService: TokenService, private val merchantRepository: MerchantRepository,
+        private val merchantShopRepository: MerchantShopRepository,
+        private val userBankCardRepository: UserBankCardRepository,
+        private val fundChangeRecordService: FundChangeRecordService,
+        private val systemBankCardService: SystemBankCardService,
+        private val merchantTopUpRecordRepository: MerchantTopUpRecordRepository,
+        private val userWithdrawRequestRepository: UserWithdrawRequestRepository,
+        private val merchantTaskRepository: MerchantTaskRepository,
+        private val passwordEncoder: BCryptPasswordEncoder,
+        val tokenService: TokenService, private val merchantRepository: MerchantRepository,
 ) {
 
 
@@ -225,6 +229,24 @@ class MerchantController(
                 Response.success()
             }
         } else Response.error(null, "密码错误")
+    }
+
+    /**
+     * 根据平台筛选任务类型
+     */
+    @GetMapping("/filterTaskType/{type}")
+    fun filterTaskType(@PathVariable type: String) =
+            TaskTypeEnum.values().filter { it.value.contains(type) }.toJson()
+
+    /**
+     * 商家发布任务
+     */
+    @PostMapping("/publishTask")
+    fun publishTask(@RequestBody request: MerchantTask): Response {
+        val merchantUsername = tokenService.getClaim("username") as String
+        request.merchantUsername = merchantUsername
+        request.state = StateTypeEnum.PENDING
+        return merchantTaskRepository.save(request).toJson()
     }
 
 }
