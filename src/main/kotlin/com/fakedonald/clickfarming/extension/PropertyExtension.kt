@@ -36,5 +36,5 @@ inline fun <reified T : Enum<T>> valueToEnum(value: String): T {
         if (enum::class.memberProperties.first().call(enum) == value) return enum
     }
 
-    throw IllegalArgumentException("Illegal argument exception")
+    throw CustomException("参数错误")
 }

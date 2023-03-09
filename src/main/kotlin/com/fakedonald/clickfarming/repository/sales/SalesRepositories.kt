@@ -1,9 +1,6 @@
 package com.fakedonald.clickfarming.repository.sales
 
-import com.fakedonald.clickfarming.domain.sales.CustomerCommissionConfig
-import com.fakedonald.clickfarming.domain.sales.SalesMan
-import com.fakedonald.clickfarming.domain.sales.SalesManSubSite
-import com.fakedonald.clickfarming.domain.sales.SalesManSubSiteConfig
+import com.fakedonald.clickfarming.domain.sales.*
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.repository.CrudRepository
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
@@ -24,3 +21,7 @@ interface SalesManSubSiteConfigRepository : CrudRepository<SalesManSubSiteConfig
 
 interface SalesManSubSiteRepository : CrudRepository<SalesManSubSite, Long>,
     JpaSpecificationExecutor<SalesManSubSite>
+
+interface SalesManCustomPriceRepository : CrudRepository<SalesManCustomPrice, Long>, JpaSpecificationExecutor<SalesManCustomPrice>
+
+interface SalesManMerchantCustomPriceRepository : CrudRepository<SalesManMerchantCustomPrice, Long>, JpaSpecificationExecutor<SalesManMerchantCustomPrice>

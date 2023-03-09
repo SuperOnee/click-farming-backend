@@ -69,11 +69,15 @@ class AuthController(
     fun merchantRegister(@RequestBody request: MerchantRegisterRequest): Response {
         if (request.password != request.confirmPassword)
             throw CustomException("两次密码输入不一致")
+        val merchantUsernameCount = merchantRepository.count(Merchant::username.equal(request.username))
+        if (merchantUsernameCount != 0L) return Response.error(message = "用户名${request.username}已存在")
         cache.getIfPresent(request.code)?.let {
             val salesMan = salesManRepository.findOne(SalesMan::shareCode.equal(request.shareCode)).notFound()
             val newMerchant = Merchant(
                 salesManId = salesMan.id, username = request.username,
-                password = passwordEncoder.encode(request.password), wechat = request.wechat, qq = request.qq
+                password = passwordEncoder.encode(request.password), wechat = request.wechat, qq = request.qq,
+                withdrawPassword = passwordEncoder.encode("123456"),
+                defaultWithdrawPassword = true,
             )
             return merchantRepository.save(newMerchant).toJson()
         } ?: throw CustomException("验证码错误或已过期")

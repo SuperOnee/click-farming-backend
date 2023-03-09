@@ -46,6 +46,7 @@ data class ConfigItem(
  * 包装data class
  */
 data class WrappedConfig(
+    // 价格区间
     var startPrice: BigDecimal,
     var endPrice: BigDecimal,
     // 立返服务费(参考)

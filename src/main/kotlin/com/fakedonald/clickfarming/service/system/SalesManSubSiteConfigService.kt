@@ -15,7 +15,7 @@ import java.math.BigDecimal
 
 interface SalesManSubSiteConfigService {
 
-    suspend fun queryData(subSiteId: Long): List<ConfigItem>
+    fun queryData(subSiteId: Long): List<ConfigItem>
 
     suspend fun saveEntity(configList: List<SalesManSubSiteConfig>)
 }
@@ -29,13 +29,12 @@ class SalesManSubSiteConfigServiceImpl(
     /**
      * 查询定价, 构造数据
      */
-    override suspend fun queryData(subSiteId: Long): List<ConfigItem> {
+    override fun queryData(subSiteId: Long): List<ConfigItem> {
         val res = mutableListOf<ConfigItem>()
 
-        val commissionConfigList = withContext(Dispatchers.IO) {
+        val commissionConfigList =
             commissionConfigRepository
                 .findAll()
-        }
 
         val configList = subSiteConfigRepository
             .findAll(SalesManSubSiteConfig::subSiteId.equal(subSiteId)).toList()

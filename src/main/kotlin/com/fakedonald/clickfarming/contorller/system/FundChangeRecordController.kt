@@ -30,6 +30,8 @@ data class FundChangeRecordQueryRequest(
     var userType: UserTypeEnum?,
     // 订单编号
     val orderNo: String? = null,
+    // 店铺
+    val shopName: String? = null,
     // 任务编号
     val taskNo: String? = null,
     // 操作人

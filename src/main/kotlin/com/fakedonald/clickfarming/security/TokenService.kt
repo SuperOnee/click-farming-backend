@@ -1,11 +1,14 @@
 package com.fakedonald.clickfarming.security
 
+import com.fakedonald.clickfarming.contorller.MerchantPasswordRequest
 import com.fakedonald.clickfarming.contorller.sales.SalesManResetPasswordRequest
+import com.fakedonald.clickfarming.domain.merchant.Merchant
 import com.fakedonald.clickfarming.domain.sales.SalesMan
 import com.fakedonald.clickfarming.domain.system.SystemUser
-import com.fakedonald.clickfarming.enums.sales.SalesManPasswordTypeEnum
+import com.fakedonald.clickfarming.enums.sales.CommonPasswordTypeEnum
 import com.fakedonald.clickfarming.extension.CustomException
 import com.fakedonald.clickfarming.extension.notFound
+import com.fakedonald.clickfarming.repository.merchant.MerchantRepository
 import com.fakedonald.clickfarming.repository.sales.SalesManRepository
 import com.fakedonald.clickfarming.repository.system.SystemUserRepository
 import kotlinx.coroutines.Dispatchers
@@ -22,8 +25,9 @@ import org.springframework.stereotype.Component
  */
 @Component
 class TokenService(
-    val systemUserRepository: SystemUserRepository,
-    val salesManRepository: SalesManRepository,
+    private val systemUserRepository: SystemUserRepository,
+    private val salesManRepository: SalesManRepository,
+    private val merchantRepository: MerchantRepository,
     val passwordEncoder: BCryptPasswordEncoder,
 ) {
 
@@ -46,6 +50,11 @@ class TokenService(
      * 获取业务员用户
      */
     fun getSalesManUser(): SalesMan = salesManRepository.findById(getClaim("userId") as Long).notFound()
+
+    /**
+     * 获取商家用户
+     */
+    fun getMerchantUser(): Merchant = merchantRepository.findById(getClaim("userId") as Long).notFound()
 
     /**
      * 校验管理密码是否合法
@@ -104,11 +113,11 @@ class TokenService(
         // 参数校验
         when (request.passwordType) {
             // 提现密码
-            SalesManPasswordTypeEnum.WITHDRAW_PASSWORD -> {
+            CommonPasswordTypeEnum.WITHDRAW_PASSWORD -> {
                 if (request.newPassword == request.confirmPassword) {
                     val entity = getSalesManUser()
                     entity.withdrawPassword = passwordEncoder.encode(request.newPassword)
-                    entity.defaultWithdrawPassword = true
+                    entity.defaultWithdrawPassword = false
                     withContext(Dispatchers.IO) {
                         salesManRepository.save(entity)
                     }
@@ -117,7 +126,7 @@ class TokenService(
                 }
             }
             // 登录密码
-            SalesManPasswordTypeEnum.LOGIN_PASSWORD -> {
+            CommonPasswordTypeEnum.LOGIN_PASSWORD -> {
                 if (request.newPassword != request.confirmPassword) throw CustomException("两次密码输入不一致")
                 val entity = getSalesManUser()
                 if (!passwordEncoder.matches(request.originalPassword, entity.password))
@@ -129,6 +138,36 @@ class TokenService(
             }
         }
     }
+
+    /**
+     * 重置商家密码
+     */
+    fun resetMerchantPassword(request: MerchantPasswordRequest) {
+        // 参数校验
+        when (request.passwordType) {
+            // 提现密码
+            CommonPasswordTypeEnum.WITHDRAW_PASSWORD -> {
+                if (request.newPassword == request.confirmPassword) {
+                    val entity = getMerchantUser()
+                    entity.withdrawPassword = passwordEncoder.encode(request.newPassword)
+                    entity.defaultWithdrawPassword = false
+                    merchantRepository.save(entity)
+                } else {
+                    throw CustomException("两次密码输入不一致")
+                }
+            }
+            // 登录密码
+            CommonPasswordTypeEnum.LOGIN_PASSWORD -> {
+                if (request.newPassword != request.confirmPassword) throw CustomException("两次密码输入不一致")
+                val entity = getMerchantUser()
+                if (!passwordEncoder.matches(request.originalPassword, entity.password))
+                    throw CustomException("原密码错误")
+                entity.password = passwordEncoder.encode(request.newPassword)
+                merchantRepository.save(entity)
+            }
+        }
+    }
+
 
     /**
      * 获取对应的claim

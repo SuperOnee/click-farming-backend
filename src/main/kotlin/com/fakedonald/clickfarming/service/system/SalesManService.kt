@@ -5,12 +5,14 @@ import com.fakedonald.clickfarming.contorller.system.CommissionConfigUpdateReque
 import com.fakedonald.clickfarming.contorller.system.SalesManQueryParams
 import com.fakedonald.clickfarming.contorller.system.SaveRequest
 import com.fakedonald.clickfarming.domain.FundChangeRecord
-import com.fakedonald.clickfarming.domain.sales.SalesMan
-import com.fakedonald.clickfarming.domain.sales.SalesManSubSite
+import com.fakedonald.clickfarming.domain.sales.*
 import com.fakedonald.clickfarming.enums.sales.SalesManTypeEnum
 import com.fakedonald.clickfarming.enums.sales.TradeTypeEnum
 import com.fakedonald.clickfarming.enums.sales.UserTypeEnum
+import com.fakedonald.clickfarming.enums.system.TaskTypeEnum
 import com.fakedonald.clickfarming.extension.*
+import com.fakedonald.clickfarming.repository.sales.SalesManCustomPriceRepository
+import com.fakedonald.clickfarming.repository.sales.SalesManMerchantCustomPriceRepository
 import com.fakedonald.clickfarming.repository.sales.SalesManRepository
 import com.fakedonald.clickfarming.repository.sales.SalesManSubSiteRepository
 import com.fakedonald.clickfarming.repository.system.FundChangeRecordRepository
@@ -44,10 +46,11 @@ interface SalesManService {
 @Service
 class SalesManServiceImpl(
     val salesManRepository: SalesManRepository,
-    val fundChangeRecordRepository: FundChangeRecordRepository,
     val fundChangeRecordService: FundChangeRecordService,
     val subSiteRepository: SalesManSubSiteRepository,
     val tokenService: TokenService,
+    val salesManCustomPriceRepository: SalesManCustomPriceRepository,
+    val salesManMerchantCustomPriceRepository: SalesManMerchantCustomPriceRepository,
     val passwordEncoder: BCryptPasswordEncoder
 ) : SalesManService {
     override suspend fun queryPage(queryParams: SalesManQueryParams): Page<SalesMan> {
@@ -238,7 +241,7 @@ class SalesManServiceImpl(
         }.notFound()
 
         // 判断是否有下级
-        val subUserCount = salesManRepository.count(SalesMan::belongsToUser.equal(salesMan.belongsToUser))
+        val subUserCount = salesManRepository.count(SalesMan::belongsToUser.equal(salesMan.username))
 
         if (subUserCount > 0) throw CustomException("该业务员已经发展下级, 不可开启分站!")
         else {
@@ -247,7 +250,26 @@ class SalesManServiceImpl(
             withContext(Dispatchers.IO) {
                 val subSite = subSiteRepository.save(SalesManSubSite(siteName = salesMan.username))
                 salesMan.subSiteId = subSite.id
-                salesManRepository.save(salesMan)
+                val savedEntity = salesManRepository.save(salesMan)
+                // 增加通用定价
+                val configList = buildList {
+                    for (i in 1..24) {
+                        this.add(SalesManCustomPriceConfigItem(0.5.toBigDecimal(), false))
+                    }
+                }
+
+                val customPrice = SalesManCustomPrice(username = "通用", subSiteId = savedEntity.subSiteId, configList = configList)
+
+                val merchantCustomPriceList = buildList {
+                    TaskTypeEnum.values().forEach {
+                        this.add(MerchantCustomPriceConfigItem(it, listOf()))
+                    }
+                }
+
+                val merchantCustomPrice = SalesManMerchantCustomPrice(username = "通用", subSiteId = savedEntity.subSiteId, configList = merchantCustomPriceList)
+
+                salesManMerchantCustomPriceRepository.save(merchantCustomPrice)
+                salesManCustomPriceRepository.save(customPrice)
             }
         }
     }

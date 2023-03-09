@@ -73,12 +73,40 @@ class SystemMerchantController(
     }
 
     /**
+     * 修改商家店铺
+     */
+    @PutMapping("/updateMerchantShop")
+    fun updateMerchantShop(@RequestBody request: MerchantShop): Response {
+        merchantRepository.findById(request.id!!).notFound()
+        return merchantShopRepository.save(request).toJson()
+    }
+
+    /**
+     * 切换商家启用状态
+     */
+    @PutMapping("/toggleEnabled/{id}")
+    fun toggleEnabled(@PathVariable id: Long): Response {
+        val updateEntity = merchantRepository.findById(id).notFound()
+        updateEntity.enabled = !updateEntity.enabled
+        return merchantRepository.save(updateEntity).toJson()
+    }
+
+    /**
      * 商家列表
+     *
+     * @param id: ID
+     * @param username: 用户名
      */
     @GetMapping("/merchantList")
-    fun merchantList(): Response {
+    fun merchantList(id: Long?, username: String?): Response {
         val pageRequest = generatePageRequest()
-        return merchantRepository.findAll(null, pageRequest).toJson()
+        return merchantRepository.findAll(
+            and(
+                Merchant::id.equal(id), username?.let { Merchant::username.like(it) }
+            ),
+            pageRequest
+        )
+            .toJson()
     }
 
     /**
@@ -100,7 +128,7 @@ class SystemMerchantController(
             and(
                 UserBankCard::userType.equal(UserTypeEnum.MERCHANT),
                 UserBankCard::issueBank.equal(issueBank),
-                UserBankCard::account.equal(issueBank),
+                UserBankCard::account.equal(account),
                 state?.let {
                     val stateEnum = valueToEnum<StateTypeEnum>(it)
                     UserBankCard::state.equal(stateEnum)

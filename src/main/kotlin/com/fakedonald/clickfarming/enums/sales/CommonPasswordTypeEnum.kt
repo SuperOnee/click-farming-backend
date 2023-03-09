@@ -6,9 +6,9 @@ import com.fasterxml.jackson.annotation.JsonValue
  * @author nathan
  * @date 2023/2/23 23:43
  *
- * 业务员密码类型枚举
+ * 通用密码类型枚举类
  */
-enum class SalesManPasswordTypeEnum(@get:JsonValue val value: String) {
+enum class CommonPasswordTypeEnum(@get:JsonValue val value: String) {
 
     // 登录密码
     LOGIN_PASSWORD("登录密码"),

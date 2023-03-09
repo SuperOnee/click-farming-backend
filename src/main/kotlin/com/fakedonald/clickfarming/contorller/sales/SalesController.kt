@@ -6,20 +6,25 @@ import com.fakedonald.clickfarming.domain.common.UserWithdrawRequest
 import com.fakedonald.clickfarming.domain.merchant.Merchant
 import com.fakedonald.clickfarming.domain.merchant.MerchantShop
 import com.fakedonald.clickfarming.domain.sales.SalesMan
+import com.fakedonald.clickfarming.domain.sales.SalesManCustomPrice
+import com.fakedonald.clickfarming.domain.sales.SalesManMerchantCustomPrice
 import com.fakedonald.clickfarming.enums.StateTypeEnum
-import com.fakedonald.clickfarming.enums.sales.SalesManPasswordTypeEnum
+import com.fakedonald.clickfarming.enums.sales.CommonPasswordTypeEnum
 import com.fakedonald.clickfarming.enums.sales.UserTypeEnum
+import com.fakedonald.clickfarming.enums.system.TaskTypeEnum
 import com.fakedonald.clickfarming.extension.*
 import com.fakedonald.clickfarming.repository.UserBankCardRepository
 import com.fakedonald.clickfarming.repository.UserWithdrawRequestRepository
 import com.fakedonald.clickfarming.repository.merchant.MerchantRepository
 import com.fakedonald.clickfarming.repository.merchant.MerchantShopRepository
-import com.fakedonald.clickfarming.repository.sales.SalesManRepository
+import com.fakedonald.clickfarming.repository.sales.*
 import com.fakedonald.clickfarming.security.TokenService
 import com.fakedonald.clickfarming.service.system.FundChangeRecordService
 import jakarta.transaction.Transactional
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.web.bind.annotation.*
+import java.math.BigDecimal
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * @author nathan
@@ -35,6 +40,9 @@ class SalesController(
     private val merchantShopRepository: MerchantShopRepository,
     private val fundChangeRecordService: FundChangeRecordService,
     private val userWithdrawRequestRepository: UserWithdrawRequestRepository,
+    private val salesManCustomPriceRepository: SalesManCustomPriceRepository,
+    private val commissionConfigRepository: CustomerCommissionConfigRepository,
+    private val salesManMerchantCustomPriceRepository: SalesManMerchantCustomPriceRepository,
     val passwordEncoder: BCryptPasswordEncoder,
 ) {
 
@@ -69,6 +77,17 @@ class SalesController(
                 }
             ),
             pageRequest
+        ).toJson()
+    }
+
+    /**
+     * 我的业务员列表, 不分页
+     */
+    @GetMapping("/getMySalesManList")
+    fun getMySalesManList(): Response {
+        val username = tokenService.getClaim("username") as String
+        return salesManRepository.findAll(
+            SalesMan::belongsToUser.equal(username)
         ).toJson()
     }
 
@@ -133,6 +152,17 @@ class SalesController(
                 },
             ),
             pageRequest
+        ).toJson()
+    }
+
+    /**
+     * 商家列表不分页
+     */
+    @GetMapping("/getMyMerchantList")
+    fun getMyMerchantList(): Response {
+        val salesManIdList = getSubSalesIdList()
+        return merchantRepository.findAll(
+            Merchant::salesManId.`in`(salesManIdList)
         ).toJson()
     }
 
@@ -269,6 +299,126 @@ class SalesController(
         } else Response.error(null, "密码错误")
     }
 
+    /**
+     * 我的定价, 分站
+     */
+    @GetMapping("/myCustomPrice")
+    fun myCustomPrice(username: String?): Response {
+        val pageRequest = generatePageRequest()
+        val currentUser = tokenService.getSalesManUser()
+        if (!currentUser.subSite!!) throw CustomException("401, 权限不足")
+        val customPriceList = salesManCustomPriceRepository.findAll(
+            and(
+                SalesManCustomPrice::subSiteId.equal(currentUser.subSiteId),
+                SalesManCustomPrice::username.equal(username)
+            ),
+            pageRequest
+        )
+        return customPriceList.toJson()
+    }
+
+    /**
+     * 更新 / 保存定价
+     */
+    @OptIn(ExperimentalStdlibApi::class)
+    @PostMapping("/saveCustomPrice")
+    fun addCustomPrice(@RequestBody request: SalesManCustomPrice): Response {
+        val currentUser = tokenService.getSalesManUser()
+        if (!currentUser.subSite!!) throw CustomException("401, 权限不足")
+        val customPrice = salesManCustomPriceRepository.findOne(SalesManCustomPrice::username.equal(request.username)).getOrNull()
+        customPrice?.let {
+            // 更新
+            it.configList = request.configList
+            return salesManCustomPriceRepository.save(it).toJson()
+        }
+
+        request.subSiteId = currentUser.subSiteId
+        return salesManCustomPriceRepository.save(request).toJson()
+    }
+
+    /**
+     * 商家定价列表
+     */
+    @GetMapping("/merchantCustomPriceList")
+    fun merchantCustomPrice(username: String?): Response {
+        val pageRequest = generatePageRequest()
+        val currentUser = tokenService.getSalesManUser()
+        if (!currentUser.subSite!!) throw CustomException("401, 权限不足")
+
+        return salesManMerchantCustomPriceRepository.findAll(
+            SalesManMerchantCustomPrice::username.equal(username),
+            pageRequest
+        ).toJson()
+    }
+
+    /**
+     * 根据ID查询
+     */
+    @GetMapping("/queryMerchantCustomPrice/{id}")
+    fun queryMerchantCustomPrice(@PathVariable id: Long?): Response {
+        var salesManMerchantCustomPrice: SalesManMerchantCustomPrice? = null
+
+        val res: MutableList<SalesManMerchantCustomPriceDto> = mutableListOf()
+
+        id?.let {
+            salesManMerchantCustomPrice = salesManMerchantCustomPriceRepository.findById(it).notFound()
+        }
+
+        val commissionConfigList = commissionConfigRepository.findAll()
+
+        val commissionConfigMap = commissionConfigList.associateBy { it.taskType }
+
+        // 构造返回值
+        TaskTypeEnum.values().forEach {
+            val commissionConfig = commissionConfigMap[it]
+            commissionConfig?.let { commission ->
+                val dto = SalesManMerchantCustomPriceDto(it,
+                    buildList {
+                        commission.configList.forEachIndexed { index, item ->
+                            val merchantCustomPriceMap = salesManMerchantCustomPrice?.configList?.associateBy { customPrice -> customPrice.taskType }
+                            var inputNumber = 0.toBigDecimal()
+                            if (merchantCustomPriceMap != null) {
+                                inputNumber = merchantCustomPriceMap[it]?.customPriceList?.get(index) ?: 0.toBigDecimal()
+                            }
+                            this.add(
+                                SalesManMerchantCustomPriceData(item.startPrice, item.endPrice, 0.toBigDecimal(), item.instantServiceFee, inputNumber)
+                            )
+                        }
+                    })
+                res.add(dto)
+            } ?: run {
+                val dto = SalesManMerchantCustomPriceDto(it, listOf())
+                res.add(dto)
+            }
+        }
+
+        return res.toJson()
+    }
+
+    /**
+     * 保存商家定价
+     */
+    @PostMapping("/saveMerchantCustomPrice")
+    fun addMerchantCustomPrice(@RequestBody request: SalesManMerchantCustomPrice): Response {
+        val currentUser = tokenService.getSalesManUser()
+        request.subSiteId = currentUser.subSiteId
+        val updateEntity = salesManMerchantCustomPriceRepository.findOne(
+            and(
+                SalesManMerchantCustomPrice::subSiteId.equal(request.subSiteId),
+                SalesManMerchantCustomPrice::username.equal(request.username)
+            )
+        )
+
+        updateEntity.ifPresentOrElse({
+            it.configList = request.configList
+            salesManMerchantCustomPriceRepository.save(it)
+        }, {
+            salesManMerchantCustomPriceRepository.save(request)
+        })
+
+        return Response.success()
+    }
+
     // 私有函数
     /**
      * 获取所有下级
@@ -304,6 +454,25 @@ data class UpdateRemarkRequest(
     val remark: String,
 )
 
+data class SalesManMerchantCustomPriceDto(
+    // 任务类型
+    var taskType: TaskTypeEnum,
+    // 数据列表
+    var dataList: List<SalesManMerchantCustomPriceData>,
+)
+
+data class SalesManMerchantCustomPriceData(
+    // 价格区间
+    var startPrice: BigDecimal,
+    var endPrice: BigDecimal,
+    // 零售价
+    var price: BigDecimal,
+    var price2: BigDecimal,
+
+    // 立返服务费
+    var serviceFeeInput: BigDecimal,
+)
+
 // 店铺列表请求
 data class ShopListRequest(
     // 商家用户名
@@ -319,7 +488,7 @@ data class ShopListRequest(
  */
 data class SalesManResetPasswordRequest(
     // 密码类型
-    val passwordType: SalesManPasswordTypeEnum,
+    val passwordType: CommonPasswordTypeEnum,
     // 原密码
     val originalPassword: String?,
     // 新密码

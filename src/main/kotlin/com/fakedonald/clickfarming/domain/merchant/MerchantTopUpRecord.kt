@@ -1,44 +1,49 @@
-package com.fakedonald.clickfarming.domain.common
+package com.fakedonald.clickfarming.domain.merchant
 
+import com.fakedonald.clickfarming.domain.BaseEntity
 import com.fakedonald.clickfarming.enums.StateTypeEnum
-import com.fakedonald.clickfarming.enums.sales.UserTypeEnum
 import jakarta.persistence.Entity
-import jakarta.persistence.Enumerated
+import jakarta.persistence.GeneratedValue
+import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.Transient
 import org.hibernate.Hibernate
 import java.math.BigDecimal
 
 @Entity
-data class UserWithdrawRequest(
+data class MerchantTopUpRecord(
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long? = null,
 
-    // 用户ID
-    var userId: Long,
+    // 关联商家id
+    var merchantId: Long,
 
-    // 绑定的银行卡ID
+    // 关联的银行实体
     var bankCardId: Long,
 
-    // 用户类型
-    @Enumerated
-    var userType: UserTypeEnum?,
+    // 充值金额
+    var amount: BigDecimal,
 
     // 审核状态
     var state: StateTypeEnum? = StateTypeEnum.PENDING,
 
-    // 提现金额
-    var amount: BigDecimal,
+    // 充值截图
+    var picture: String,
 
-    // 提现密码
+    // 备注
+    var remark: String? = "",
+
+    // 付款账号
     @Transient
-    var withdrawPassword: String,
-) {
+    var account: String? = "",
+
+    ) : BaseEntity() {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || Hibernate.getClass(this) != Hibernate.getClass(other)) return false
-        other as UserWithdrawRequest
+        other as MerchantTopUpRecord
 
         return id != null && id == other.id
     }

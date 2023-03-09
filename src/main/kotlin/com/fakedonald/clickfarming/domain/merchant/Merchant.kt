@@ -1,19 +1,14 @@
 package com.fakedonald.clickfarming.domain.merchant
 
 import com.fakedonald.clickfarming.domain.BaseEntity
-import com.fakedonald.clickfarming.enums.merchant.ShopTypeEnum
 import com.fakedonald.clickfarming.enums.merchant.MerchantStateTypeEnum
 import com.fakedonald.clickfarming.enums.sales.PrincipalTypeEnum
 import com.fasterxml.jackson.annotation.JsonIgnore
-import io.hypersistence.utils.hibernate.type.json.JsonType
 import jakarta.persistence.*
 import org.hibernate.Hibernate
-import org.hibernate.annotations.Type
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
-import java.io.Serializable
 import java.math.BigDecimal
-import java.time.LocalDateTime
 
 /**
  * @author nathan
@@ -42,6 +37,12 @@ data class Merchant(
 
     // 联系人
     var contact: String? = "",
+
+    // 联系人电话
+    var contactNumber: String? = "",
+
+    // 是否启用
+    var enabled: Boolean = false,
 
     /**
      * 店铺列表
@@ -74,16 +75,34 @@ data class Merchant(
     var publishTaskEnabled: Boolean = false,
 
     // 微信号
-    var wechat: String = "",
+    var wechat: String? = "",
 
     // QQ号
-    var qq: String = "",
+    var qq: String? = "",
 
     // 备注
     var remark: String = "",
 
     // 绑定店铺限制
     var shopLimit: Int = 0,
+
+    // 所属类目
+    var mainCategory: String? = "",
+
+    // 省份
+    var province: String? = "",
+
+    // 城市
+    var city: String? = "",
+
+    /**
+     * 提现密码
+     */
+    @JsonIgnore
+    var withdrawPassword: String,
+
+    // 是否为默认提现密码
+    var defaultWithdrawPassword: Boolean,
 
 
     ) : BaseEntity(), UserDetails {
@@ -104,7 +123,7 @@ data class Merchant(
     @JsonIgnore
     override fun isCredentialsNonExpired() = true
 
-    override fun isEnabled() = state == MerchantStateTypeEnum.PASS
+    override fun isEnabled() = state == MerchantStateTypeEnum.PASS && enabled
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || Hibernate.getClass(this) != Hibernate.getClass(other)) return false

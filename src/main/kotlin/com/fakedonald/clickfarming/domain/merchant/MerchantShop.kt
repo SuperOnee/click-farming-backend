@@ -3,6 +3,7 @@ package com.fakedonald.clickfarming.domain.merchant
 import com.fakedonald.clickfarming.domain.BaseEntity
 import com.fakedonald.clickfarming.enums.StateTypeEnum
 import com.fakedonald.clickfarming.enums.merchant.ShopTypeEnum
+import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.Enumerated
 import jakarta.persistence.GeneratedValue
@@ -25,6 +26,7 @@ data class MerchantShop(
     var id: Long?,
 
     // 关联商家的ID
+    @Column(updatable = false)
     var merchantId: Long?,
 
     // 店铺类型

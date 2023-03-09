@@ -48,6 +48,9 @@ data class FundChangeRecord(
     // 任务编号
     var taskNo: String? = "",
 
+    // 店铺
+    var shopName: String? = "",
+
     // 金额
     var amount: BigDecimal = BigDecimal.ZERO,
 
